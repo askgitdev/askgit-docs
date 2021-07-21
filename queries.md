@@ -19,7 +19,7 @@ SELECT
     count(*),
     substr(author_email, instr(author_email, '@')+1) AS email_domain -- https://sqlite.org/lang_corefunc.html
 FROM commits
-WHERE parent_count < 2 -- ignore merge commits
+WHERE parents < 2 -- ignore merge commits
 GROUP BY email_domain
 ORDER BY count(*) DESC
 ```
@@ -27,12 +27,10 @@ ORDER BY count(*) DESC
 ```sql
 -- top 50 files changed most frequently in the past year
 SELECT file_path, COUNT(*)
-FROM stats
-JOIN commits
-ON stats.commit_id = commits.id
+FROM commits, stats('', commits.hash)
 WHERE
 commits.author_when > DATE('now', '-12 month')
-AND commits.parent_count < 2 -- ignore merge commits
+AND commits.parents < 2 -- ignore merge commits
 GROUP  BY file_path
 ORDER  BY COUNT(*) DESC
 LIMIT  50
