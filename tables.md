@@ -4,200 +4,161 @@ Similar to `git log`, the `commits` table includes all commits in the history of
 
 | Column          | Type     |
 |-----------------|----------|
-| id              | TEXT     |
+| hash            | TEXT     |
 | message         | TEXT     |
-| summary         | TEXT     |
 | author_name     | TEXT     |
 | author_email    | TEXT     |
 | author_when     | DATETIME |
 | committer_name  | TEXT     |
 | committer_email | TEXT     |
 | committer_when  | DATETIME |
-| parent_id       | TEXT     |
-| parent_count    | INT      |
+| parents         | INT      |
 
-## `blame`
+Params:
+  1. `repository` - path to a remote (http(s)) repository
+  2. `rev` - return commits starting at this revision (i.e. branch name or SHA), defaults to `HEAD`
 
-Similar to `git blame`, the `blame` table includes blame information for all files in the current HEAD.
+```sql
+-- return all commits starting at HEAD
+SELECT * FROM commits
 
-| Column       | Type     |
-|--------------|----------|
-| line_no      | INT      |
-| file_path    | TEXT     |
-| commit_id    | TEXT     |
-| line_content | TEXT     |
+-- specify an alternative repo on disk
+SELECT * FROM commits('/some/path/to/repo')
+
+-- clone a remote repo and use it
+SELECT * FROM commits('https://github.com/askgitdev/askgit')
+
+-- use the default repo, but provide an alternate branch
+SELECT * FROM commits('', 'some-ref')
+```
+
+## `refs`
+
+| Column    | Type |
+|-----------|------|
+| name      | TEXT |
+| type      | TEXT |
+| remote    | TEXT |
+| full_name | TEXT |
+| hash      | TEXT |
+| target    | TEXT |
+
+Params:
+  1. `repository` - path to a remote (http(s)) repository
 
 
 ## `stats`
 
 | Column    | Type |
 |-----------|------|
-| commit_id | TEXT |
 | file_path | TEXT |
 | additions | INT  |
 | deletions | INT  |
 
-## `files`
+Params:
+  1. `repository` - path to a remote (http(s)) repository
+  2. `rev` - commit hash (or branch/tag name) to use for retrieving stats, defaults to `HEAD`
+  3. `to_rev` - commit hash to calculate stats relative to
 
-The `files` table iterates over _ALL_ the files in a commit history, by default from what's checked out in the repository.
-The full table is every file in every tree of a commit history.
-Use the `commit_id` column to filter for files that belong to the work tree of a specific commit.
+```sql
+-- return stats of HEAD
+SELECT * FROM stats
+
+-- return stats of a specific commit
+SELECT * FROM stats('', 'COMMIT_HASH')
+
+-- return stats for every commit in the current history
+SELECT commits.hash, stats.* FROM commits, stats('', commits.hash)
+```
+
+## `files`
 
 | Column     | Type |
 |------------|------|
-| commit_id  | TEXT |
 | path       | TEXT |
-| contents   | TEXT |
 | executable | BOOL |
+| contents   | TEXT |
 
+Params:
+  1. `repository` - path to a remote (http(s)) repository
+  2. `rev` - commit hash (or branch/tag name) to use for retrieving files in, defaults to `HEAD`
 
-## `branches`
+## `blame`
 
-| Column | Type |
-|--------|------|
-| name   | TEXT |
-| remote | BOOL |
-| target | TEXT |
-| head   | BOOL |
+Similar to `git blame`, the `blame` table includes blame information for all files in the current HEAD.
 
-## `tags`
+| Column      | Type     |
+|-------------|----------|
+| line_no     | INT      |
+| commit_hash | TEXT     |
 
-| Column       | Type |
-|--------------|------|
-| full_name    | TEXT |
-| name         | TEXT |
-| lightweight  | BOOL |
-| target       | TEXT |
-| tagger_name  | TEXT |
-| tagger_email | TEXT |
-| message      | TEXT |
-| target_type  | TEXT |
+Params:
+  1. `repository` - path to a remote (http(s)) repository
+  2. `rev` - commit hash (or branch/tag name) to use for retrieving blame information from, defaults to `HEAD`
+  3. `file_path` - path of file to blame
 
-## `github_org_repos` and `github_user_repos`
+## `toml_json`
 
-These tables can be queried as table-valued functions expecting a single parameter, like so:
+Scalar function that converts `toml` to `json`.
 
-```sql
--- return all repos from a github *org*
-SELECT * FROM github_org_repos('augmentable-dev')
+```SQL
+SELECT toml_to_json('[some-toml]')
 
--- return all repos from a github *user*
-SELECT * FROM github_user_repos('augmentable-dev')
+-- +-----------------------------+
+-- | TOML_TO_JSON('[SOME-TOML]') |
+-- +-----------------------------+
+-- | {"some-toml":{}}            |
+-- +-----------------------------+
 ```
 
-| Column            | Type     |
-|-------------------|----------|
-| id                | INT      |
-| node_id           | TEXT     |
-| name              | TEXT     |
-| full_name         | TEXT     |
-| owner             | TEXT     |
-| private           | BOOL     |
-| description       | TEXT     |
-| fork              | BOOL     |
-| homepage          | TEXT     |
-| language          | TEXT     |
-| forks_count       | INT      |
-| stargazers_count  | INT      |
-| watchers_count    | INT      |
-| size              | INT      |
-| default_branch    | TEXT     |
-| open_issues_count | INT      |
-| topics            | TEXT     |
-| has_issues        | BOOL     |
-| has_projects      | BOOL     |
-| has_wiki          | BOOL     |
-| has_pages         | BOOL     |
-| has_downloads     | BOOL     |
-| archived          | BOOL     |
-| pushed_at         | DATETIME |
-| created_at        | DATETIME |
-| updated_at        | DATETIME |
-| permissions       | TEXT     |
+## `xml_to_json`
 
-## `github_pull_requests`
+Scalar function that converts `xml` to `json`.
 
-This table expects 2 parameters, `github_pull_requests('augmentable-dev', 'askgit')`:
+```SQL
+SELECT xml_to_json('<some-xml>hello</some-xml>')
 
-```sql
-SELECT count(*) FROM github_pull_requests('augmentable-dev', 'askgit') WHERE state = 'open'
+-- +-------------------------------------------+
+-- | XML_TO_JSON('<SOME-XML>HELLO</SOME-XML>') |
+-- +-------------------------------------------+
+-- | {"some-xml":"hello"}                      |
+-- +-------------------------------------------+
 ```
 
-| Column                    | Type     |
-|---------------------------|----------|
-| id                        | INT      |
-| node_id                   | TEXT     |
-| number                    | INT      |
-| state                     | TEXT     |
-| locked                    | BOOL     |
-| title                     | TEXT     |
-| user_login                | TEXT     |
-| body                      | TEXT     |
-| labels                    | TEXT     |
-| active_lock_reason        | TEXT     |
-| created_at                | DATETIME |
-| updated_at                | DATETIME |
-| closed_at                 | DATETIME |
-| merged_at                 | DATETIME |
-| merge_commit_sha          | TEXT     |
-| assignee_login            | TEXT     |
-| assignees                 | TEXT     |
-| requested_reviewer_logins | TEXT     |
-| head_label                | TEXT     |
-| head_ref                  | TEXT     |
-| head_sha                  | TEXT     |
-| head_repo_owner           | TEXT     |
-| head_repo_name            | TEXT     |
-| base_label                | TEXT     |
-| base_ref                  | TEXT     |
-| base_sha                  | TEXT     |
-| base_repo_owner           | TEXT     |
-| base_repo_name            | TEXT     |
-| author_association        | TEXT     |
-| merged                    | BOOL     |
-| mergeable                 | BOOL     |
-| mergeable_state           | BOOL     |
-| merged_by_login           | TEXT     |
-| comments                  | INT      |
-| maintainer_can_modify     | BOOL     |
-| commits                   | INT      |
-| additions                 | INT      |
-| deletions                 | INT      |
-| changed_files             | INT      |
+## `yaml_to_json` and `yml_to_json`
 
-## `github_issues`
+Scalar function that converts `yaml` to `json`.
 
-This table expects 2 parameters, `github_issues('augmentable-dev', 'askgit')`:
+```SQL
+SELECT yaml_to_json('hello: world')
 
-```sql
-SELECT count(*) FROM github_issues('augmentable-dev', 'askgit') WHERE state = 'open'
+-- +------------------------------+
+-- | YAML_TO_JSON('HELLO: WORLD') |
+-- +------------------------------+
+-- | {"hello":"world"}            |
+-- +------------------------------+
 ```
 
+## `str_split`
 
-| Column                    | Type     |
-|---------------------------|----------|
-| id                        | INT      |
-| node_id                   | TEXT     |
-| number                    | INT      |
-| state                     | TEXT     |
-| locked                    | BOOL     |
-| title                     | TEXT     |
-| user_login                | TEXT     |
-| body                      | TEXT     |
-| labels                    | TEXT     |
-| active_lock_reason        | TEXT     |
-| created_at                | DATETIME |
-| updated_at                | DATETIME |
-| closed_at                 | DATETIME |
-| merged_at                 | DATETIME |
-| merge_commit_sha          | TEXT     |
-| assignee_login            | TEXT     |
-| assignees                 | TEXT     |
-| url                       | TEXT     |
-| html_url                  | TEXT     |
-| comments_url              | TEXT     |
-| events_url                | TEXT     |
-| repository_url            | TEXT     |
-| comments                  | INT      |
-| milestone                 | TEXT     |
-| reactions                 | INT      |
+Helper for splitting strings on some separator.
+
+```sql
+SELECT str_split('hello,world', ',', 0)
+
+-- +----------------------------------+
+-- | STR_SPLIT('HELLO,WORLD', ',', 0) |
+-- +----------------------------------+
+-- | hello                            |
+-- +----------------------------------+
+```
+
+```sql
+SELECT str_split('hello,world', ',', 1)
+
+-- +----------------------------------+
+-- | STR_SPLIT('HELLO,WORLD', ',', 1) |
+-- +----------------------------------+
+-- | world                            |
+-- +----------------------------------+
+```
