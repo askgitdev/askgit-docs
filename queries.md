@@ -8,7 +8,7 @@ SELECT DISTINCT(author_name) FROM commits
 SELECT
     author_name, count(*) 
 FROM commits
-WHERE parent_count < 2 -- ignore merge commits
+WHERE parents < 2 -- ignore merge commits
 GROUP BY author_name
 ORDER BY count(*) DESC
 ```
